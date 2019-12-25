@@ -127,15 +127,16 @@ let visitor = {
 ### 生成catch体
 catch是一个类型函数的东西，但它又不是，它接受一个参数，这个参数就是Error对象，catch里面的内容我们一般会对异常进行一些处理，比如然后上报到后端，但是很多时候我们的代码是经过混淆压缩的，所以error里面我们不能获取到具体发生错误的具体行列以及导致error的函数的函数名。  
 
-那么我们要如何定位到异常发生的地方呢？我们在访问函数节点的时候，AST节点实际上是保留了这些信息的。所以我们可以在访问器中事先获取这些信息，并把它塞到原来的catch体里面。**这里的行列只能是函数开始的行列，不能定位到error发生的行列。**
+那么我们要如何定位到异常发生的地方呢？一般我们需要四个纬度的信息：文件名、函数/方法名、行数和列数，我们在访问函数节点的时候，AST节点实际上是保留了这些信息的。所以我们可以在访问器中事先获取这些信息，并把它塞到原来的catch体里面。**这里的行列只能是函数开始的行列，不能定位到error发生的行列。**
 
-获取行列信息很简单，通过获取节点的loc属性便可。但是获取函数名，就比较复杂了，函数的定义，有三种方式，如果不是以函数申明的方式定义函数，那么函数名的获取，需要从它父节点中获取，并且还要判断父节点的类型，如果是普通的函数表达式，从父节点的id属性获取，如果是对象属性方法，那么需要从父节点的key属性获取。实际上还有类的情况没考虑，这里先不考虑，后续有时间再补充。还有一种情况就是函数可能是匿名的。综合考虑后，获取函数名的代码如下：
+获取行列信息很简单，通过获取节点的loc属性便可，文件名也是很容易获取的，它保存在访问器的state参数中。但是获取函数名，就比较复杂了，函数的定义，有三种方式，如果不是以函数申明的方式定义函数，那么函数名的获取，需要从它父节点中获取，并且还要判断父节点的类型，如果是普通的函数表达式，从父节点的id属性获取，如果是对象属性方法，那么需要从父节点的key属性获取。实际上还有类的情况没考虑，这里先不考虑，后续有时间再补充。还有一种情况就是函数可能是匿名的。综合考虑后，获取函数名的代码如下：
 ```
 let visitor = {
-  'ArrowFunctionExpression|FunctionExpression|FunctionDeclaration': function(path) {
+  'ArrowFunctionExpression|FunctionExpression|FunctionDeclaration': function(path, state) {
       let node = path.node
       let body = node.body
-      
+      // 文件名
+      let filename = state.file.opts.filename
       // 获取行列
       let line = node.loc.start.line
       let column = node.loc.start.column
@@ -161,14 +162,15 @@ let visitor = {
 ```
 有行列以及函数名，我们就需要把这些信息存到一个变量，那么就可以利用babel-types来生成真个变量对应AST节点了，点击[这里](https://babeljs.io/docs/en/next/babel-types.html#variabledeclaration)获取如何生成申明变量的节点，代码如下：
 ``` js
-// 生成一个变量申明的AST节点 值包含了函数的行数，列数，和函数名
+// 生成一个变量申明的AST节点 值包含了函数的行数，列数，函数名以及文件名
 let infoDeclarator = types.variableDeclaration('var', [
     types.variableDeclarator(
       types.identifier('info'),
       types.ObjectExpression([
         types.objectProperty(types.identifier('line'), types.numericLiteral(node.loc.start.line)),
         types.objectProperty(types.identifier('row'), types.numericLiteral(node.loc.start.column)),
-        types.objectProperty(types.identifier('function'), types.stringLiteral(funcName))
+        types.objectProperty(types.identifier('function'), types.stringLiteral(funcName)),
+        types.objectProperty(types.identifier('filename'), types.stringLiteral(filename))
       ]))
 ]);
 ```
