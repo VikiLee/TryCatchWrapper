@@ -11,8 +11,8 @@ function report(info) {
 }
 
 function generateTryCatch(path) {
-  var params = path.node.params;
   var node = path.node;
+  var params = node.params;
   var blockStatement = node.body;
 
   // get function name
