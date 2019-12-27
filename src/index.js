@@ -8,6 +8,11 @@ var code = fs.readFileSync('./code.js', 'utf-8');
 // 这个是catch里面的内容，这里只是例子，实际情况看项目需求，或者写个webpack-loader/babel-plugin去开放给用户定义
 function report(info) {
   console.log(info, error);
+  console.log(111);
+}
+
+function getFilename(filename) {
+  return filename.replace(process.cwd(), '')
 }
 
 function generateTryCatch(path, filename) {
@@ -24,11 +29,13 @@ function generateTryCatch(path, filename) {
       // class method name
       funcName = node.key.name
     }
-    if (types.isVariableDeclarator(path.parentPath)) {
-      funcName = path.parentPath.node.id.name;
-    } else if (types.isProperty(path.parentPath)) {
-      funcName = path.parentPath.node.key.name;
-    } 
+    if (funcName === 'anonymous function') {
+      if (types.isVariableDeclarator(path.parentPath)) {
+        funcName = path.parentPath.node.id.name;
+      } else if (types.isProperty(path.parentPath)) {
+        funcName = path.parentPath.node.key.name;
+      }   
+    }
 
     var isGenerator = node.generator;
     var isAsync = node.async;
@@ -50,12 +57,12 @@ function generateTryCatch(path, filename) {
           types.objectProperty(types.identifier('line'), types.numericLiteral(node.loc.start.line)),
           types.objectProperty(types.identifier('row'), types.numericLiteral(node.loc.start.column)),
           types.objectProperty(types.identifier('function'), types.stringLiteral(funcName)),
-          types.objectProperty(types.identifier('filename'), types.stringLiteral(filename))
+          types.objectProperty(types.identifier('filename'), types.stringLiteral(getFilename(filename)))
         ]))
     ]);
 
     var catchClause = types.catchClause(types.identifier('error'), types.blockStatement(
-      [infoDeclarator, catchBody.body[0]]
+      [infoDeclarator].concat(catchBody.body)
     ));
     var tryStatement = types.tryStatement(blockStatement, catchClause);
 

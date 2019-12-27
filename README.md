@@ -162,7 +162,7 @@ let visitor = {
 ```
 有行列以及函数名，我们就需要把这些信息存到一个变量，那么就可以利用babel-types来生成真个变量对应AST节点了，点击[这里](https://babeljs.io/docs/en/next/babel-types.html#variabledeclaration)获取如何生成申明变量的节点，代码如下：
 ``` js
-// 生成一个变量申明的AST节点 值包含了函数的行数，列数，函数名以及文件名
+// 生成一个变量申明的AST节点 值包含了函数的行数、列数、函数名以及文件名
 let infoDeclarator = types.variableDeclaration('var', [
     types.variableDeclarator(
       types.identifier('info'),
