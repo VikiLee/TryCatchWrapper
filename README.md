@@ -225,7 +225,9 @@ if (blockStatement.body && types.isTryStatement(blockStatement.body[0])
 贴上全部代码的git地址：https://github.com/VikiLee/TryCatchWrapper
 
 ### 其他
-本篇文章未涉及到类方法以及简易对象方法（通过简洁方式定义的对象方法）方面到说明，这两种类型的方法通过FunctionExpression、FunctionDeclaration和ArrowFunctionExpression的访问器都是无法访问到的，所以无法包裹类方法和简易对象方法，但是git上的代码是已经考虑了类方法和简易对象方法的情况了。
+本篇文章未涉及到类方法以及简易对象方法（通过简洁方式定义的对象方法）方面到说明，这两种类型的方法通过FunctionExpression、FunctionDeclaration和ArrowFunctionExpression的访问器都是无法访问到的，所以无法包裹类方法和简易对象方法，但是git上的代码是已经考虑了类方法和简易对象方法的情况了。  
+
+代码中也包含了如果你不想你的函数被try catch包裹或者你的函数行数太少也不想被包括，可以设置注解和行数限制来避免这个plugin去包裹。详细实现可以看下代码。
 
 ### 参考链接:
 [关于babel插件](https://github.com/jamiebuilds/babel-handbook/blob/master/translations/en/plugin-handbook.md)  

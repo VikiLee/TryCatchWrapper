@@ -54,7 +54,7 @@ function generateTryCatch(path, filename) {
       ? blockStatement.body[0].leadingComments
       : blockStatement.innerComments || blockStatement.trailingComments
     if (commentsNode && commentsNode[0].value.indexOf(DISABLE_COMMENT) > -1) {
-      return;
+      path.skip();
     }
 
     // 将catch handler转为AST节点 然后从AST节点中获取函数体 作为catch里面的内容
