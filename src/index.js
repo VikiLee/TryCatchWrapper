@@ -5,6 +5,9 @@ var types = require('babel-types');
 var template = require("@babel/template");
 var code = fs.readFileSync('./code.js', 'utf-8');
 
+var DISABLE_COMMENT = 'disable-try-catch';
+var LIMIT_LINE = 0;
+
 // 这个是catch里面的内容，这里只是例子，实际情况看项目需求，或者写个webpack-loader/babel-plugin去开放给用户定义
 function report(info) {
   console.log(info, error);
@@ -17,9 +20,12 @@ function getFilename(filename) {
 
 function generateTryCatch(path, filename) {
   try {
-    var node = path.node;
-    var params = node.params;
-    var blockStatement = node.body;
+    var node = path.node,
+        params = node.params,
+        blockStatement = node.body,
+        isGenerator = node.generator,
+        isAsync = node.async,
+        loc = node.loc;
 
     // get function name
     var funcName = 'anonymous function';
@@ -28,41 +34,47 @@ function generateTryCatch(path, filename) {
     } else if (node.key) {
       // class method name
       funcName = node.key.name
-    }
-    if (funcName === 'anonymous function') {
-      if (types.isVariableDeclarator(path.parentPath)) {
-        funcName = path.parentPath.node.id.name;
-      } else if (types.isProperty(path.parentPath)) {
-        funcName = path.parentPath.node.key.name;
-      }   
+    } else if (types.isVariableDeclarator(path.parentPath)) {
+      funcName = path.parentPath.node.id.name;
+    } else if (types.isProperty(path.parentPath)) {
+      funcName = path.parentPath.node.key.name;
     }
 
-    var isGenerator = node.generator;
-    var isAsync = node.async;
-
-    // 1、如果有try catch包裹了，则不需要 2、防止circle loops 3、需要try catch的只能是语句，像() => 0这种的body，是不需要的
+    // 1、如果有try catch包裹了，则不需要 2、防止circle loops 
+    // 3、需要try catch的只能是语句，像() => 0这种的body，是不需要的
+    // 4、如果函数内容小于等于‘LIMIT_LINE’行不try catch，当然这个函数可以暴露出来给用户设置
     if (blockStatement.body && types.isTryStatement(blockStatement.body[0])
-      || !types.isBlockStatement(blockStatement) && !types.isExpressionStatement(blockStatement)) {
+      || !types.isBlockStatement(blockStatement) && !types.isExpressionStatement(blockStatement)
+      || blockStatement.body && blockStatement.body.length <= LIMIT_LINE) {
       return;
     }
+
+    // 获取函数开头注解，如果注解为disable-try-catch则跳过try catch
+    var commentsNode = blockStatement.body.length > 0
+      ? blockStatement.body[0].leadingComments
+      : blockStatement.innerComments || blockStatement.trailingComments
+    if (commentsNode && commentsNode[0].value.indexOf(DISABLE_COMMENT) > -1) {
+      return;
+    }
+
     // 将catch handler转为AST节点 然后从AST节点中获取函数体 作为catch里面的内容
     var catchStatement = template.statement(`var tmp = ${report.toString()}`)();
     var catchBody = catchStatement.declarations[0].init.body; 
 
     // 赋值语句 值包含了函数的行列数和函数名
-    var infoDeclarator = types.variableDeclaration('var', [
+    var infoDeclaration = types.variableDeclaration('var', [
       types.variableDeclarator(
         types.identifier('info'),
         types.ObjectExpression([
-          types.objectProperty(types.identifier('line'), types.numericLiteral(node.loc.start.line)),
-          types.objectProperty(types.identifier('row'), types.numericLiteral(node.loc.start.column)),
+          types.objectProperty(types.identifier('line'), types.numericLiteral(loc.start.line)),
+          types.objectProperty(types.identifier('row'), types.numericLiteral(loc.start.column)),
           types.objectProperty(types.identifier('function'), types.stringLiteral(funcName)),
           types.objectProperty(types.identifier('filename'), types.stringLiteral(getFilename(filename)))
         ]))
     ]);
 
     var catchClause = types.catchClause(types.identifier('error'), types.blockStatement(
-      [infoDeclarator].concat(catchBody.body)
+      [infoDeclaration].concat(catchBody.body)
     ));
     var tryStatement = types.tryStatement(blockStatement, catchClause);
 

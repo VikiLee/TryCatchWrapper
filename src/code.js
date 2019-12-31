@@ -252,3 +252,41 @@ export function logout() {
   removeCookie('uid')
   goToLogin()
 }
+
+export function functionDeclaration() {
+  // disable-try-catch in function declaration
+  return 1
+}
+
+// specail
+export let fun = () => {
+  // disable-try-catch in arrow function expression
+  return (1);
+}
+
+export const func = function() {
+  console.log(111)
+}
+
+export const obj = {
+  objectMethod: function() {
+    // disable-try-catch in object method
+  },
+  objMethod1() {
+    // disable-try-catch in object method1
+  },
+  objectMethod2: () => {
+    // disable-try-catch in object method2
+  }
+}
+
+export class Cls {
+  constructor() {
+
+  }
+
+  classMethod() {
+
+    // disable-try-catch in class method
+  }
+}
